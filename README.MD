@@ -1,1 +1,2 @@
-vagrant up
+$ vagrant init hashicorp/bionic64
+$ vagrant up
