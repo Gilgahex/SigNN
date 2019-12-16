@@ -83,19 +83,19 @@ def plot(hand):
 
     plt.show()
 
-HANDS = {}
-for x in ascii_uppercase:
-    fileName = x + ".json"
-    try:
-        loadedHands = norm(loadHands(fileName))
-    except:
-        print("{} is not in dataset".format(x))
-        continue
-    averageHand = norm(loadedHands)
-    HANDS[x] = analyzeHands(averageHand)['mean']
+# HANDS = {}
+# for x in ascii_uppercase:
+#     fileName = x + ".json"
+#     try:
+#         loadedHands = norm(loadHands(fileName))
+#     except:
+#         print("{} is not in dataset".format(x))
+#         continue
+#     averageHand = norm(loadedHands)
+#     HANDS[x] = analyzeHands(averageHand)['mean']
 
-file = open("averageHands.json", "w+")
-json.dump(HANDS, file)
+# file = open("averageHands.json", "w+")
+# json.dump(HANDS, file)
 
 # plot(analyzeHands(norm(loadHands("L.json")))['mean'])
 # plot(loadHands("L.json")[0])
