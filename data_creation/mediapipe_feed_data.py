@@ -25,8 +25,9 @@ def runMediapipe(filename, mediapipe_directory):
 
     stream = os.popen(command)
     output = stream.read()
-
-    return json.loads(output)
+    if output:
+        return json.loads(output)
+    return []
 
 
 
