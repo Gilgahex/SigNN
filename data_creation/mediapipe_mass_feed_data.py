@@ -30,7 +30,7 @@ def runMediapipe(filename, mediapipe_directory, outputname):
     output = stream.read()
     if output:
         result = json.loads(output)
-        return [x for x in result[::2] if any(y for y in x)]
+        return [x for x in result[1::2] if any(y for y in x)]
     return []
 
 class TrainingImage():
