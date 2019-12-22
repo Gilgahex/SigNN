@@ -12,15 +12,21 @@ import time
 # 2. Put all images in folders in current directory, name folder after what image represents
 # 3. run "python3 mediapipe_mass_feed_data.py"
 
+# These parameters may be set by human
 OUTPUT_FILE = "training_data.json"
 BASE_RESOLUTION = (1920, 1920)
-SCRIPT_PATH = None
+
+# Below parameters are set by script
+SCRIPT_PATH = None 
+
 
 def setResolution(path, resolution):
     assert isinstance(path, str), "Is actually {} with value {}".format(type(path), path)
     assert isinstance(resolution, tuple)
     assert len(resolution) == 2
     im = Image.open(path)
+    if im.size == resolution:
+        return
     im = ImageOps.fit(im, resolution)
     im.save(path, dpi=resolution)
 
@@ -49,15 +55,30 @@ class TrainingImage():
         print("{} destroyed".format(self.path))
         os.remove(self.path)
         del self
+
+    def __hash__(self):
+        return int(os.path.getmtime(self.path) * 10000000)
+
+    def __str__(self):
+        return self.path
+
+    def __repr__(self):
+        return self.path
         
          
 
-
 def getImagesInFolder(absolutePath):
     assert isinstance(absolutePath, str)
-    images = [TrainingImage(os.path.join(absolutePath, img)) for img in os.listdir(absolutePath) if img.endswith(".jpg") or img.endswith(".png")]
-    [setResolution(img.path, BASE_RESOLUTION) for img in images]
-    return images
+    images = [TrainingImage(os.path.join(absolutePath, img)) for img in os.listdir(absolutePath) if img.endswith(".jpg") or img.endswith(".jpeg") or img.endswith(".png")]
+    returnImages = []
+    for img in images:
+        try:
+            setResolution(img.path, BASE_RESOLUTION)
+            returnImages.append(img)
+        except:
+            print("{} is not a readable image".format(img))
+            img.destroy()
+    return returnImages
 
 def createVideoFromImages(images, output_name, primer=None):
     assert isinstance(images, list)
@@ -73,9 +94,63 @@ def createVideoFromImages(images, output_name, primer=None):
     return output_name
 
 
+class Hash:
+    HASH_FILE = "hash.txt"
+    @staticmethod
+    def getSavedHash(absolutePath):
+        path = os.path.join(absolutePath, Hash.HASH_FILE)
+        try:
+            file = open(path)
+            result = file.read()
+            file.close()
+            return result
+        except:
+            return False
 
-def photoToJSON(absolutePath, word, mediapipeDirectory):
+    @staticmethod
+    def getHash(images):
+        if isinstance(images, list):
+            images = tuple(images)
+        return hash(images)
+
+    @staticmethod
+    def saveHash(absolutePath, images):
+        newhash = Hash.getHash(images)
+        path = os.path.join(absolutePath, Hash.HASH_FILE)
+        file = open(path, "w")
+        file.write(str(newhash))
+        file.close()
+        return newhash
+
+
+
+def photoToJSON(absolutePath, word, mediapipeDirectory, PREVIOUS_DATA):
     ALL_IMAGES = getImagesInFolder(absolutePath)
+    
+    if PREVIOUS_DATA and word in PREVIOUS_DATA.keys() and str(Hash.getHash(ALL_IMAGES)) == Hash.getSavedHash(absolutePath) and len(ALL_IMAGES) == len(PREVIOUS_DATA[word]):
+        print("{} unmodified, using previous data".format(word))
+        return PREVIOUS_DATA[word]
+    # if PREVIOUS_DATA:
+    #     if word in PREVIOUS_DATA.keys():
+    #         print("Previous data found!")
+    #         currentHash = Hash.getHash(ALL_IMAGES)
+    #         savedHash = Hash.getSavedHash(absolutePath)
+    #         print("CURRENT HASH: {}".format(currentHash))
+    #         print("PREVIOUS HASH: {}".format(savedHash))
+    #         if str(currentHash) == savedHash:
+    #             currentDataLength = len(ALL_IMAGES)
+    #             savedDataLength = len(PREVIOUS_DATA[word])
+    #             print("CURRENT DATA LENGTH: {}".format(currentDataLength))
+    #             print("SAVED DATA LENGTH: {}".format(savedDataLength))
+    #             if currentDataLength == savedDataLength:
+    #                 print("Using hash for {}".format(word))
+    #                 return PREVIOUS_DATA[word]
+    #     else:
+    #         print("{} not in {}".format(word, PREVIOUS_DATA.keys()))
+    # else:
+    #     print("NO PREVIOUS DATA")
+
+
     output_file = word + ".avi"
     output_file = os.path.join(absolutePath, output_file)
     original_image_count = len(ALL_IMAGES)
@@ -90,6 +165,10 @@ def photoToJSON(absolutePath, word, mediapipeDirectory):
             
     if original_image_count != len(ALL_IMAGES):
         print("{} images used out of {}".format(len(ALL_IMAGES), original_image_count))
+    else:
+        print("{} images used".format(original_image_count))
+
+    Hash.saveHash(absolutePath, ALL_IMAGES)
 
     return result
 
@@ -110,6 +189,13 @@ def main():
     global SCRIPT_PATH
     pathname = os.path.dirname(sys.argv[0]) 
     SCRIPT_PATH = os.path.abspath(pathname)
+    try:
+        file = open(OUTPUT_FILE, "r")
+        PREVIOUS_DATA = json.load(file)
+        print("Previous data loaded with {} symbols in {} total data points".format(len(PREVIOUS_DATA), sum(len(x) for x in PREVIOUS_DATA.values())))
+    except:
+        print("No previous {} found".format(OUTPUT_FILE))
+        PREVIOUS_DATA = None
 
     MEDIAPIPE_DIRECTORY = getMediapipeDirectory()
     
@@ -118,9 +204,7 @@ def main():
     for file in os.listdir(CURRENT_PATH):
         full_path = os.path.join(CURRENT_PATH, file)
         if os.path.isdir(full_path):
-            # file_name = createVideosfromPhoto(full_path, file)
-            # RESULTS[file] = runMediapipe(file_name, MEDIAPIPE_DIRECTORY, file)
-            RESULTS[file] = photoToJSON(full_path, file, MEDIAPIPE_DIRECTORY)
+            RESULTS[file] = photoToJSON(full_path, file, MEDIAPIPE_DIRECTORY, PREVIOUS_DATA)
             print("{} done".format(file))
             
 
