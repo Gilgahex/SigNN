@@ -97,6 +97,7 @@ def plot(hand, word, save=False):
         plt.savefig(os.path.join("image_means", word + '.png'))
     else:
         plt.show()
+    plt.close()
 
 def getMeansToTxt(saveFile):
     assert isinstance(saveFile, str)
